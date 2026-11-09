@@ -1,0 +1,15 @@
+package com.demomart.client.net
+
+import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Query
+
+interface MeApi {
+    @POST("v1/me/session") suspend fun openSession(): Response<MeSession>
+    @GET("v1/me") suspend fun me(): Response<Me>
+    @GET("v1/me/history") suspend fun history(@Query("limit") limit: Int): Response<List<HistoryItem>>
+    @PUT("v1/me/fcm-token") suspend fun putFcmToken(@Body token: FcmToken): Response<Unit>
+}
