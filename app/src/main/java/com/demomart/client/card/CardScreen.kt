@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.demomart.client.R
-import com.demomart.client.ui.formatPoints
+import com.demomart.client.anim.AnimatedBalance
 import com.demomart.client.ui.theme.Cream
 import com.demomart.client.ui.theme.DeepGreen
 import kotlinx.coroutines.Dispatchers
@@ -98,8 +98,14 @@ fun CardScreen(viewModel: CardViewModel, onBack: () -> Unit) {
                 ) {
                     Image(painterResource(R.drawable.ic_demomart_logo), null, Modifier.size(52.dp))
                     Text(state.cardDisplay, style = MaterialTheme.typography.titleMedium, color = Cream)
-                    Text(state.balance?.let(::formatPoints) ?: "—",
-                        style = MaterialTheme.typography.displayMedium, color = Cream)
+                    val balance = state.balance
+                    if (balance == null) {
+                        Text("—", style = MaterialTheme.typography.displayMedium, color = Cream)
+                    } else {
+                        ProvideTextStyle(MaterialTheme.typography.displayMedium) {
+                            AnimatedBalance(balance, state.lastEffect) { viewModel.consumeEffect(it.key) }
+                        }
+                    }
                 }
             }
             Surface(

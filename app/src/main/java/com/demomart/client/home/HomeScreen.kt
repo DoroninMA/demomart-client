@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.demomart.client.R
+import com.demomart.client.anim.AnimatedBalance
 import com.demomart.client.account.key
 import com.demomart.client.net.HistoryItem
 import com.demomart.client.ui.formatEur
@@ -84,10 +85,13 @@ fun HomeScreen(viewModel: HomeViewModel, onCard: () -> Unit, onSignOut: () -> Un
                     ) {
                         Text("Your balance", color = Cream, style = MaterialTheme.typography.labelLarge)
                         val balance = account?.balance
-                        Text(balance?.let(::formatPoints) ?: "—", color = Cream,
-                            style = MaterialTheme.typography.displaySmall)
-                        balance?.let {
-                            Text("worth ${formatEur(it)} at the till", color = Cream)
+                        if (balance == null) {
+                            Text("—", color = Cream, style = MaterialTheme.typography.displaySmall)
+                        } else {
+                            ProvideTextStyle(MaterialTheme.typography.displaySmall) {
+                                AnimatedBalance(balance, account?.lastEffect) { viewModel.consumeEffect(it.key) }
+                            }
+                            Text("worth ${formatEur(balance)} at the till", color = Cream)
                         }
                     }
                 }

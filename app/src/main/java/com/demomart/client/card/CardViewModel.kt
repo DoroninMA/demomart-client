@@ -74,4 +74,5 @@ class CardViewModel @Inject constructor(
         polling?.cancel()
         polling = null
     }
+    fun consumeEffect(key: String) = account.consumeEffect(key)
 }

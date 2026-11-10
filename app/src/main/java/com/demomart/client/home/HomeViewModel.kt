@@ -31,4 +31,5 @@ class HomeViewModel @Inject constructor(private val repository: AccountRepositor
             }
         }
     }
+    fun consumeEffect(key: String) = repository.consumeEffect(key)
 }
