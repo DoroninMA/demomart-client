@@ -43,10 +43,13 @@ android {
 
     buildTypes {
         debug {
+            buildConfigField("boolean", "WALLET_ENABLED", "true")
             buildConfigField("String", "SERVER_URL", quoted(debugUrl))
             buildConfigField("String", "AUTH_MODE", quoted(debugMode))
         }
         release {
+            val walletEnabled = local.getProperty("loyalty.releaseWalletEnabled").toBoolean()
+            buildConfigField("boolean", "WALLET_ENABLED", walletEnabled.toString())
             buildConfigField("String", "SERVER_URL", quoted(releaseUrl))
             buildConfigField("String", "AUTH_MODE", quoted("firebase"))
         }
@@ -115,6 +118,7 @@ dependencies {
     implementation(libs.credentials.core)
     implementation(libs.credentials.play)
     implementation(libs.google.id)
+    implementation(libs.google.pay)
     implementation(libs.zxing)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)

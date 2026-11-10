@@ -2,8 +2,12 @@ package com.demomart.client.card
 
 import androidx.lifecycle.viewModelScope
 import com.demomart.client.account.AccountRepository
+import com.demomart.client.net.ApiResult
 import com.demomart.client.testing.*
 import com.demomart.client.token.annaCredentials
+import com.demomart.client.wallet.PayResults
+import com.demomart.client.wallet.WalletAddedStore
+import com.demomart.client.wallet.WalletRepository
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -31,7 +35,17 @@ class CardViewModelTest {
     }
     private val clock = serverClock(deviceClock)
     private val account = AccountRepository(me, store, clock)
-    private val viewModel by lazy { CardViewModel(store, clock, account) }
+    private val viewModel by lazy {
+        val wallet = object : WalletRepository {
+            override suspend fun enabled() = false
+            override suspend fun saveJwt() = ApiResult.Err("wallet_disabled")
+        }
+        val flags = object : WalletAddedStore {
+            override suspend fun contains(card: String) = false
+            override suspend fun markAdded(card: String) = Unit
+        }
+        CardViewModel(store, clock, account, wallet, PayResults(), flags)
+    }
 
     private fun runCardTest(body: suspend TestScope.() -> Unit) = runTest {
         val model = viewModel

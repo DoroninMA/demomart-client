@@ -11,7 +11,9 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
+import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.RecordedRequest
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.*
@@ -25,7 +27,13 @@ class RetrofitMeRepositoryTest {
     private val clock = ServerClock(device, MemoryOffsetStore())
     private val auth = object : AuthTokenProvider {
         override val signedIn = MutableStateFlow(true)
-        override suspend fun idToken(forceRefresh: Boolean) = if (forceRefresh) "fresh" else "original"
+        @Volatile var activeSession = "anna"
+        override val sessionId: String get() = activeSession
+        override suspend fun idToken(forceRefresh: Boolean) = when {
+            activeSession == "ben" -> "new-account"
+            forceRefresh -> "fresh"
+            else -> "original"
+        }
         override suspend fun signOut() { signedIn.value = false }
         override suspend fun signInEmail(email: String, password: String) = error("Unused")
         override suspend fun signUpEmail(name: String, email: String, password: String) = error("Unused")
@@ -95,5 +103,28 @@ class RetrofitMeRepositoryTest {
         enqueue("", 204)
         assertEquals(ApiResult.Ok(Unit), repo.putFcmToken("tok"))
         assertEquals("""{"token":"tok"}""", server.takeRequest().body.readUtf8())
+    }
+
+    @Test fun stale401DoesNotRetryAsAnotherAccount() = runTest {
+        changeAccountOnUnauthorized("Bearer original")
+        assertEquals("unauthenticated", (repo.openSession() as ApiResult.Err).code)
+        assertEquals(1, server.requestCount)
+        assertTrue(auth.signedIn.value)
+    }
+
+    @Test fun staleRetryDoesNotSignOutAnotherAccount() = runTest {
+        changeAccountOnUnauthorized("Bearer fresh")
+        assertEquals("unauthenticated", (repo.openSession() as ApiResult.Err).code)
+        assertEquals(2, server.requestCount)
+        assertTrue(auth.signedIn.value)
+    }
+
+    private fun changeAccountOnUnauthorized(header: String) {
+        server.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.getHeader("Authorization") == header) auth.activeSession = "ben"
+                return MockResponse().setResponseCode(401).setBody("""{"error":"unauthenticated"}""")
+            }
+        }
     }
 }

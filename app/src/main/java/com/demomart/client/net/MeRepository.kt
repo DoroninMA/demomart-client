@@ -19,34 +19,37 @@ class RetrofitMeRepository @Inject constructor(
     private val api: MeApi,
     private val json: Json,
 ) : MeRepository {
-    override suspend fun openSession() = request { api.openSession() }
-    override suspend fun me() = request { api.me() }
-    override suspend fun history(limit: Int) = request { api.history(limit) }
-    override suspend fun putFcmToken(token: String) = request(emptyBody = Unit) { api.putFcmToken(FcmToken(token)) }
+    override suspend fun openSession() = json.request { api.openSession() }
+    override suspend fun me() = json.request { api.me() }
+    override suspend fun history(limit: Int) = json.request { api.history(limit) }
+    override suspend fun putFcmToken(token: String) = json.request(emptyBody = Unit) { api.putFcmToken(FcmToken(token)) }
+}
 
-    private suspend fun <T : Any> request(emptyBody: T? = null, call: suspend () -> Response<T>): ApiResult<T> =
-        try {
-            val response = call()
-            if (response.isSuccessful) {
-                (response.body() ?: emptyBody)?.let { ApiResult.Ok(it) } ?: ApiResult.Err("server")
-            } else {
-                failure(response)
-            }
-        } catch (_: SerializationException) {
-            ApiResult.Err("server")
-        } catch (_: IOException) {
-            ApiResult.Err("network")
-        }
-
-    private fun failure(response: Response<*>): ApiResult.Err {
-        val fallback = if (response.code() == 401) "unauthenticated" else "server"
-        val body = response.errorBody()?.use { it.string() }
-        if (response.code() >= 500 || body.isNullOrBlank()) return ApiResult.Err(fallback)
-        val error = try {
-            json.decodeFromString<ErrorBody>(body)
-        } catch (_: SerializationException) {
-            return ApiResult.Err(fallback)
-        }
-        return ApiResult.Err(error.error, error.message ?: errorText(error.error))
+internal suspend fun <T : Any> Json.request(
+    emptyBody: T? = null,
+    readServerErrors: Boolean = false,
+    call: suspend () -> Response<T>,
+): ApiResult<T> = try {
+    val response = call()
+    if (response.isSuccessful) {
+        (response.body() ?: emptyBody)?.let { ApiResult.Ok(it) } ?: ApiResult.Err("server")
+    } else {
+        failure(response, readServerErrors)
     }
+} catch (_: SerializationException) {
+    ApiResult.Err("server")
+} catch (_: IOException) {
+    ApiResult.Err("network")
+}
+
+private fun Json.failure(response: Response<*>, readServerErrors: Boolean): ApiResult.Err {
+    val fallback = if (response.code() == 401) "unauthenticated" else "server"
+    val body = response.errorBody()?.use { it.string() }
+    if ((!readServerErrors && response.code() >= 500) || body.isNullOrBlank()) return ApiResult.Err(fallback)
+    val error = try {
+        decodeFromString<ErrorBody>(body)
+    } catch (_: SerializationException) {
+        return ApiResult.Err(fallback)
+    }
+    return ApiResult.Err(error.error, error.message ?: errorText(error.error))
 }

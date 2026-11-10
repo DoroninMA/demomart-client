@@ -6,6 +6,10 @@ import com.demomart.client.net.MeApi
 import com.demomart.client.net.MeRepository
 import com.demomart.client.net.RetrofitMeRepository
 import com.demomart.client.token.ServerClock
+import com.demomart.client.wallet.DataStoreWalletAdded
+import com.demomart.client.wallet.RetrofitWalletRepository
+import com.demomart.client.wallet.WalletAddedStore
+import com.demomart.client.wallet.WalletRepository
 import com.google.firebase.FirebaseException
 import dagger.Binds
 import dagger.Module
@@ -32,21 +36,30 @@ object NetworkModule {
     fun httpClient(auth: AuthTokenProvider, serverClock: ServerClock, deviceClock: Clock): OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor { chain ->
-                val token = auth.token()
+                val sessionId = auth.sessionId
+                val token = auth.token().takeIf { auth.sessionId == sessionId }
                 val original = chain.request()
                 val request = original.newBuilder()
                     .apply { if (token != null) header("Authorization", "Bearer $token") }
                     .build()
                 val response = chain.proceed(request)
-                if (response.code != 401 || token == null) return@addInterceptor response
-                response.close()
+                if (response.code != 401 || token == null || auth.sessionId != sessionId) {
+                    return@addInterceptor response
+                }
 
-                val fresh = auth.token(forceRefresh = true)
+                val fresh = try {
+                    auth.token(forceRefresh = true)
+                } catch (error: IOException) {
+                    response.close()
+                    throw error
+                }
+                if (auth.sessionId != sessionId) return@addInterceptor response
+                response.close()
                 val retry = original.newBuilder()
                     .apply { if (fresh != null) header("Authorization", "Bearer $fresh") }
                     .build()
                 val retried = chain.proceed(retry)
-                if (retried.code == 401) {
+                if (retried.code == 401 && auth.sessionId == sessionId) {
                     try {
                         runBlocking { auth.signOut() }
                     } catch (error: IOException) {
@@ -86,4 +99,6 @@ object NetworkModule {
 @InstallIn(SingletonComponent::class)
 interface MeRepositoryModule {
     @Binds fun repository(implementation: RetrofitMeRepository): MeRepository
+    @Binds fun walletRepository(implementation: RetrofitWalletRepository): WalletRepository
+    @Binds fun walletAddedStore(implementation: DataStoreWalletAdded): WalletAddedStore
 }

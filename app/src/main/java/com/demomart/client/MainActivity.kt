@@ -28,6 +28,8 @@ import com.demomart.client.card.CardScreen
 import com.demomart.client.push.LoyaltyMessagingService
 import com.demomart.client.push.OPEN_CARD
 import com.demomart.client.ui.theme.DemoMartTheme
+import com.demomart.client.wallet.PayResults
+import com.demomart.client.wallet.REQUEST_CODE_SAVE
 import com.google.firebase.FirebaseApp
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -38,8 +40,15 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     @Inject lateinit var auth: AuthTokenProvider
     @Inject lateinit var account: AccountRepository
+    @Inject lateinit var payResults: PayResults
 
     private val openCard = MutableStateFlow(false)
+
+    @Deprecated("Google Wallet delivers its save result through onActivityResult")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_SAVE) payResults.emit(resultCode)
+    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -75,11 +84,15 @@ class MainActivity : ComponentActivity() {
         val route = entry?.destination?.route
         val shouldOpenCard by openCard.collectAsStateWithLifecycle()
         val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+        LaunchedEffect(signedIn) {
+            if (!signedIn) {
+                account.clear()
+                getSystemService(NotificationManager::class.java).cancel(LoyaltyMessagingService.NOTIFICATION_ID)
+            }
+        }
         LaunchedEffect(signedIn, route) {
             if (!signedIn && route != null && route != "login") {
                 nav.navigate("login") { popUpTo(nav.graph.id) { inclusive = true } }
-                account.clear()
-                getSystemService(NotificationManager::class.java).cancel(LoyaltyMessagingService.NOTIFICATION_ID)
             }
         }
         LaunchedEffect(shouldOpenCard, signedIn, route) {

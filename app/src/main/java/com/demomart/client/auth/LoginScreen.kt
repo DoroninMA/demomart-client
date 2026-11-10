@@ -1,6 +1,6 @@
 package com.demomart.client.auth
 
-import android.app.Activity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,7 +12,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -24,7 +23,7 @@ import com.demomart.client.R
 @Composable
 fun LoginScreen(viewModel: LoginViewModel, onDone: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val activity = LocalContext.current as? Activity
+    val activity = LocalActivity.current
     val signingUp = state.mode == LoginMode.SignUp
     val enabled = !state.busy
     LaunchedEffect(state.done) { if (state.done) onDone() }

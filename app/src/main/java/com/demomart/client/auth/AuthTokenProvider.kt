@@ -29,6 +29,7 @@ import kotlinx.coroutines.withContext
 
 interface AuthTokenProvider {
     val signedIn: StateFlow<Boolean>
+    val sessionId: String? get() = null
     suspend fun signInEmail(email: String, password: String): ApiResult<Unit>
     suspend fun signUpEmail(name: String, email: String, password: String): ApiResult<Unit>
     suspend fun signInGoogle(activity: Activity): ApiResult<Unit>
@@ -41,6 +42,7 @@ class FakeTokenProvider(
     private val preferences: SharedPreferences,
 ) : AuthTokenProvider {
     @Volatile private var token = preferences.getString("token", null)
+    override val sessionId: String? get() = token
     private val state = MutableStateFlow(token != null)
     override val signedIn = state.asStateFlow()
 
@@ -73,6 +75,7 @@ class FirebaseTokenProvider(
     private val store: CredentialStore,
     private val context: Context,
 ) : AuthTokenProvider {
+    override val sessionId: String? get() = auth.currentUser?.uid
     private val state = MutableStateFlow(auth.currentUser != null)
     override val signedIn = state.asStateFlow()
 

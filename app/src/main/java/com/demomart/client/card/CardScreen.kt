@@ -27,10 +27,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.demomart.client.BuildConfig
 import com.demomart.client.R
 import com.demomart.client.anim.AnimatedBalance
 import com.demomart.client.ui.theme.Cream
 import com.demomart.client.ui.theme.DeepGreen
+import com.demomart.client.wallet.GooglePayLauncher
+import com.demomart.client.wallet.WalletButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -38,8 +41,25 @@ import kotlinx.coroutines.withContext
 @Composable
 fun CardScreen(viewModel: CardViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val wallet by viewModel.wallet.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val window = LocalActivity.current?.window
+    val activity = LocalActivity.current
+    val window = activity?.window
+    val launcher = remember(activity) {
+        if (BuildConfig.WALLET_ENABLED && activity != null) GooglePayLauncher(activity) else null
+    }
+    LaunchedEffect(launcher, viewModel) {
+        launcher?.available(viewModel::onPayAvailability)
+        if (launcher != null) {
+            viewModel.launchSave.collect { jwt ->
+                try {
+                    launcher.save(jwt)
+                } catch (_: Exception) {
+                    viewModel.onSaveResult(Int.MIN_VALUE)
+                }
+            }
+        }
+    }
     val qrSize = 256.dp
     val pixels = with(LocalDensity.current) { qrSize.roundToPx() }
     val token = state.token
@@ -139,6 +159,17 @@ fun CardScreen(viewModel: CardViewModel, onBack: () -> Unit) {
                     Text("Turn on NFC to pay by tap")
                 }
                 NfcState.Unsupported -> Unit
+            }
+            if (wallet != WalletUiState.Hidden) {
+                if (wallet == WalletUiState.Added) Text("In Google Wallet ✓")
+                (wallet as? WalletUiState.Error)?.let {
+                    Text(it.text, color = MaterialTheme.colorScheme.error)
+                }
+                WalletButton(
+                    enabled = wallet != WalletUiState.Saving,
+                    added = wallet == WalletUiState.Added,
+                    onClick = viewModel::onWalletClick,
+                )
             }
         }
     }

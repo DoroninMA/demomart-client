@@ -8,6 +8,8 @@ fun errorText(code: String): String = when (code) {
     "weak_password" -> "Use a password with at least six characters"
     "storage" -> "Couldn't save your session, please try again"
     "network" -> "No connection to server"
+    "wallet_disabled" -> "Google Wallet isn't available"
+    "wallet_unavailable" -> "Google Wallet is not responding, try again"
     "unsupported" -> "Google sign-in is unavailable"
     "google_cancelled" -> "Google sign-in was cancelled"
     else -> "Something went wrong"
