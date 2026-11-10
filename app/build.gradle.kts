@@ -113,6 +113,7 @@ dependencies {
     implementation(libs.credentials.core)
     implementation(libs.credentials.play)
     implementation(libs.google.id)
+    implementation(libs.zxing)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.okhttp.mock)

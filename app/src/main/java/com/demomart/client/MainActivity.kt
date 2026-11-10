@@ -17,6 +17,7 @@ import com.demomart.client.account.AccountRepository
 import com.demomart.client.auth.AuthTokenProvider
 import com.demomart.client.auth.LoginScreen
 import com.demomart.client.home.HomeScreen
+import com.demomart.client.card.CardScreen
 import com.demomart.client.ui.theme.DemoMartTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -69,7 +70,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             composable("card") {
-                TextButton({ nav.popBackStack() }, Modifier.safeDrawingPadding()) { Text("Back") }
+                CardScreen(hiltViewModel()) { nav.popBackStack() }
             }
         }
     }

@@ -77,4 +77,17 @@ class AccountRepositoryTest {
         account.refresh()
         assertEquals(BalanceEffect.Earn(128, 22), account.account.value?.lastEffect)
     }
+
+    @Test fun pollFetchesHistoryOnlyOnChange() = runTest {
+        account.openSession()
+        val profiles = me.profiles
+        val histories = me.histories
+        account.poll()
+        assertEquals(profiles + 1, me.profiles)
+        assertEquals(histories, me.histories)
+        me.profile = me.profile.copy(balance = 873)
+        account.poll()
+        assertEquals(histories + 1, me.histories)
+        assertEquals(873L, account.account.value?.balance)
+    }
 }
