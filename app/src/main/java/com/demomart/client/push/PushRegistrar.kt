@@ -45,9 +45,9 @@ class PushRegistrar @Inject constructor(
                 try {
                     tokenSource.token()?.let { me.putFcmToken(it) }
                 } catch (_: IOException) {
-                    // Registration is retried on the next session or token change.
+                    // retried on the next session or token refresh
                 } catch (_: FirebaseException) {
-                    // Registration is retried on the next session or token change.
+                    // retried on the next session or token refresh
                 }
             }
         }
