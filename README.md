@@ -1,8 +1,22 @@
-# DemoMart customer app
+<p align="center"><img src="docs/icon.svg" width="120" alt="App icon"></p>
+
+<h1 align="center">DemoMart customer app</h1>
+
+<p align="center">Part of <a href="https://github.com/DoroninMA/demomart"><b>DemoMart</b></a>, a demo loyalty card system</p>
 
 Loyalty card app for Android. The customer signs in, sees the points balance and history, and shows the card at the register as a rotating QR code or by tapping the phone (NFC card emulation). The card can also be added to Google Wallet.
 
 Kotlin, Jetpack Compose, Hilt, Retrofit, DataStore, Firebase Auth + FCM, ZXing. Android 8.0+.
+
+## Screenshots
+
+<p align="center">
+<img src="docs/sign-in.jpg" width="180">
+<img src="docs/home.jpg" width="180">
+<img src="docs/card.jpg" width="180">
+<img src="docs/card-redeem.jpg" width="180">
+<img src="docs/wallet-pass.jpg" width="180">
+</p>
 
 ## Build
 
@@ -42,6 +56,12 @@ With the register on a second phone and the seeded server:
 - Same over NFC, also with the customer phone in airplane mode and with the app killed (`adb shell am kill com.demomart.client`).
 - Signed out → the register shows "Customer not signed in".
 - Home open while a sale goes through → the balance animates once.
+
+## Demo
+
+| Pay over NFC | Pay by QR |
+|---|---|
+| <img src="docs/nfc_payment.gif" width="300"> | <img src="docs/qr_payment.gif" width="220"> |
 
 ## License
 
