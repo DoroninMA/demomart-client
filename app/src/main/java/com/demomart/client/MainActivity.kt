@@ -9,6 +9,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -119,13 +124,22 @@ class MainActivity : ComponentActivity() {
                     nav.navigate("home") { popUpTo("login") { inclusive = true } }
                 }
             }
-            composable("home") {
+            composable(
+                "home",
+                exitTransition = { ExitTransition.KeepUntilTransitionsFinished },
+                popEnterTransition = { EnterTransition.None },
+            ) {
                 val scope = rememberCoroutineScope()
                 HomeScreen(hiltViewModel(), onCard = { nav.navigate("card") }) {
                     scope.launch { auth.signOut() }
                 }
             }
-            composable("card") {
+            composable(
+                "card",
+                // the card slides over home, home stays put underneath
+                enterTransition = { slideInHorizontally(tween(450)) { it } },
+                popExitTransition = { slideOutHorizontally(tween(450)) { it } },
+            ) {
                 CardScreen(hiltViewModel()) { nav.popBackStack() }
             }
         }

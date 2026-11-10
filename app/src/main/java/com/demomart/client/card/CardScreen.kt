@@ -29,12 +29,14 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.demomart.client.BuildConfig
 import com.demomart.client.R
+import com.demomart.client.account.BalanceEffect
 import com.demomart.client.anim.AnimatedBalance
 import com.demomart.client.ui.theme.Cream
 import com.demomart.client.ui.theme.DeepGreen
 import com.demomart.client.wallet.GooglePayLauncher
 import com.demomart.client.wallet.WalletButton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +44,14 @@ import kotlinx.coroutines.withContext
 fun CardScreen(viewModel: CardViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val wallet by viewModel.wallet.collectAsStateWithLifecycle()
+    val close by rememberUpdatedState(onBack)
+    val paid = state.lastEffect?.takeIf { it !is BalanceEffect.Refund }
+    LaunchedEffect(paid?.key) {
+        // back to the history once a sale has landed
+        if (paid == null) return@LaunchedEffect
+        delay(2500)
+        close()
+    }
     val context = LocalContext.current
     val activity = LocalActivity.current
     val window = activity?.window
