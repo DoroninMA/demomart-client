@@ -9,7 +9,11 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.demomart.client.account.AndroidSecretCipher
 import com.demomart.client.account.CredentialStore
 import com.demomart.client.account.KeystoreCredentialStore
+import com.demomart.client.push.FcmTokenSource
+import com.demomart.client.push.FirebaseFcmTokenSource
+import com.demomart.client.push.NoopFcmTokenSource
 import com.demomart.client.token.OffsetStore
+import com.google.firebase.FirebaseApp
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -45,4 +49,9 @@ object DataModule {
 
     @Provides @Singleton
     fun clock(): Clock = Clock.systemUTC()
+
+    @Provides @Singleton
+    fun fcmTokenSource(@ApplicationContext context: Context): FcmTokenSource =
+        if (FirebaseApp.getApps(context).isNotEmpty()) FirebaseFcmTokenSource()
+        else NoopFcmTokenSource
 }

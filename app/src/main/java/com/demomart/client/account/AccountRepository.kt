@@ -3,6 +3,7 @@ package com.demomart.client.account
 import com.demomart.client.net.ApiResult
 import com.demomart.client.net.HistoryItem
 import com.demomart.client.net.MeRepository
+import com.demomart.client.push.PushRegistrar
 import com.demomart.client.token.CardCredentials
 import com.demomart.client.token.ServerClock
 import java.io.IOException
@@ -32,6 +33,7 @@ class AccountRepository @Inject constructor(
     private val me: MeRepository,
     private val store: CredentialStore,
     private val clock: ServerClock,
+    private val pushRegistrar: PushRegistrar? = null,
 ) {
     private val mutex = Mutex()
     private val state = MutableStateFlow<AccountState?>(null)
@@ -52,6 +54,10 @@ class AccountRepository @Inject constructor(
 
     suspend fun refresh(): ApiResult<Unit> = mutex.withLock { refreshLocked() }
 
+    internal suspend fun refreshFromPush(saleId: Long, delta: Long): ApiResult<Unit> = mutex.withLock {
+        refreshLocked { item -> item.saleId == saleId && item.pointsDelta == delta }
+    }
+
     suspend fun poll(): ApiResult<Unit> = mutex.withLock {
         when (val profile = me.me()) {
             is ApiResult.Err -> profile
@@ -66,7 +72,7 @@ class AccountRepository @Inject constructor(
         }
     }
 
-    private suspend fun refreshLocked(): ApiResult<Unit> = coroutineScope {
+    private suspend fun refreshLocked(matchesPush: (HistoryItem) -> Boolean = { false }): ApiResult<Unit> = coroutineScope {
         val pendingProfile = async { me.me() }
         val pendingHistory = async { me.history() }
         val profileResult = pendingProfile.await()
@@ -76,7 +82,8 @@ class AccountRepository @Inject constructor(
 
         val profile = (profileResult as ApiResult.Ok).value
         val items = (historyResult as ApiResult.Ok).value
-        val effect = BalanceEffect.detect(lastSeenTopKey, items)
+        val baseline = lastSeenTopKey ?: if (items.firstOrNull()?.let(matchesPush) == true) "" else null
+        val effect = BalanceEffect.detect(baseline, items)
         lastSeenTopKey = items.firstOrNull()?.key.orEmpty()
         state.update { previous ->
             AccountState(
@@ -102,6 +109,7 @@ class AccountRepository @Inject constructor(
         lastSeenTopKey = null
         state.value = AccountState(session.displayName, session.cardDisplay, session.balance)
         refreshLocked()
+        pushRegistrar?.registerInBackground()
         return ApiResult.Ok(Unit)
     }
 }

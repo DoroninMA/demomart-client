@@ -24,6 +24,8 @@ googleId = "1.1.1"
 zxing = "3.5.3"
 
 [libraries]
+lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "lifecycle" }
+firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 zxing = { module = "com.google.zxing:core", version.ref = "zxing" }
 credentials-core = { module = "androidx.credentials:credentials", version.ref = "credentials" }
 credentials-play = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }

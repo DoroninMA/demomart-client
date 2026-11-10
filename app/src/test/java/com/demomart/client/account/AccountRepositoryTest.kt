@@ -90,4 +90,14 @@ class AccountRepositoryTest {
         assertEquals(histories + 1, me.histories)
         assertEquals(873L, account.account.value?.balance)
     }
+
+    @Test fun coldPushOnlyAnimatesMatchingAccountHistory() = runTest {
+        me.historyItems = listOf(redeem)
+        account.refreshFromPush(redeem.saleId + 1, redeem.pointsDelta)
+        assertNull(account.account.value?.lastEffect)
+
+        account.clear()
+        account.refreshFromPush(redeem.saleId, redeem.pointsDelta)
+        assertEquals(BalanceEffect.Redeem(127, 500, 18, 500), account.account.value?.lastEffect)
+    }
 }

@@ -110,6 +110,8 @@ dependencies {
     implementation(libs.datastore)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.messaging)
+    implementation(libs.lifecycle.process)
     implementation(libs.credentials.core)
     implementation(libs.credentials.play)
     implementation(libs.google.id)
