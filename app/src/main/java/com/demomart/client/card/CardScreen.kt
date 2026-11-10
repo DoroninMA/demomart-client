@@ -3,6 +3,8 @@ package com.demomart.client.card
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.nfc.NfcManager
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.WindowManager
 import androidx.activity.compose.LocalActivity
@@ -86,14 +88,22 @@ fun CardScreen(viewModel: CardViewModel, onBack: () -> Unit) {
             else -> NfcState.Disabled
         })
         viewModel.onVisible()
+        onPauseOrDispose { viewModel.onHidden() }
+    }
 
+    // Window attribute changes stall a frame, keep them out of the slide animations
+    DisposableEffect(window) {
         val brightness = window?.attributes?.screenBrightness
         val keepScreenOn = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
         val wasKeptOn = (window?.attributes?.flags ?: 0) and keepScreenOn != 0
-        window?.addFlags(keepScreenOn)
-        window?.let { it.attributes = it.attributes.apply { screenBrightness = 1f } }
-        onPauseOrDispose {
-            viewModel.onHidden()
+        val handler = Handler(Looper.getMainLooper())
+        val apply = Runnable {
+            window?.addFlags(keepScreenOn)
+            window?.let { it.attributes = it.attributes.apply { screenBrightness = 1f } }
+        }
+        handler.postDelayed(apply, 450)
+        onDispose {
+            handler.removeCallbacks(apply)
             window?.let {
                 it.attributes = it.attributes.apply {
                     screenBrightness = brightness ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
