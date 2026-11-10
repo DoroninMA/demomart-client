@@ -16,6 +16,7 @@ import androidx.navigation.compose.rememberNavController
 import com.demomart.client.account.AccountRepository
 import com.demomart.client.auth.AuthTokenProvider
 import com.demomart.client.auth.LoginScreen
+import com.demomart.client.home.HomeScreen
 import com.demomart.client.ui.theme.DemoMartTheme
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -62,12 +63,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
             composable("home") {
-                val profile by account.account.collectAsStateWithLifecycle()
                 val scope = rememberCoroutineScope()
-                Column(Modifier.safeDrawingPadding()) {
-                    Text("Hi, ${profile?.displayName ?: "there"}")
-                    Button({ nav.navigate("card") }) { Text("My card") }
-                    TextButton({ scope.launch { auth.signOut() } }) { Text("Sign out") }
+                HomeScreen(hiltViewModel(), onCard = { nav.navigate("card") }) {
+                    scope.launch { auth.signOut() }
                 }
             }
             composable("card") {

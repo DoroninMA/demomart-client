@@ -5,10 +5,14 @@ import com.demomart.client.testing.FakeMeRepository
 import com.demomart.client.testing.MemoryCredentials
 import com.demomart.client.testing.serverClock
 import com.demomart.client.token.annaCredentials
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class AccountRepositoryTest {
     private val me = FakeMeRepository()
     private val store = MemoryCredentials()
@@ -30,5 +34,47 @@ class AccountRepositoryTest {
         account.ensureCredentials()
         assertEquals(1, me.sessions)
         assertEquals(annaCredentials, store.load())
+    }
+
+    @Test fun refreshTwiceAnimatesOnce() = runTest {
+        account.openSession()
+        me.historyItems = listOf(redeem)
+        me.profile = me.profile.copy(balance = 873)
+        account.refresh()
+        val effect = BalanceEffect.Redeem(127, 500, 18, 500)
+        assertEquals(effect, account.account.value?.lastEffect)
+        account.refresh()
+        assertEquals(effect, account.account.value?.lastEffect)
+        account.consumeEffect(effect.key)
+        account.refresh()
+        assertNull(account.account.value?.lastEffect)
+    }
+
+    @Test fun concurrentRefreshSerialized() = runTest {
+        account.openSession()
+        val baselineProfiles = me.profiles
+        val firstStarted = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val finishFirst = kotlinx.coroutines.CompletableDeferred<Unit>()
+        me.beforeMe = { firstStarted.complete(Unit); finishFirst.await() }
+        me.historyItems = listOf(earn)
+        val first = launch { account.refresh() }
+        firstStarted.await()
+        val second = launch { account.refresh() }
+        runCurrent()
+        assertEquals(baselineProfiles + 1, me.profiles)
+        finishFirst.complete(Unit)
+        first.join()
+        second.join()
+        assertEquals(baselineProfiles + 2, me.profiles)
+        assertEquals(BalanceEffect.Earn(128, 22), account.account.value?.lastEffect)
+    }
+
+    @Test fun sessionSetsBaseline() = runTest {
+        me.historyItems = listOf(redeem)
+        account.openSession()
+        assertNull(account.account.value?.lastEffect)
+        me.historyItems = listOf(earn, redeem)
+        account.refresh()
+        assertEquals(BalanceEffect.Earn(128, 22), account.account.value?.lastEffect)
     }
 }
