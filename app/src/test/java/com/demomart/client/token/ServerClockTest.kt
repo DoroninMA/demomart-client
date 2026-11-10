@@ -23,6 +23,11 @@ class ServerClockTest {
     private fun date(offset: Long): String =
         DateTimeFormatter.RFC_1123_DATE_TIME.format(instant.plusSeconds(offset).atZone(ZoneOffset.UTC))
 
+    @Test fun noOffsetWhenClose() {
+        clock.onServerDate(date(3), instant)
+        assertEquals(instant.epochSecond, clock.now())
+    }
+
     @Test fun offsetWhenFarOff() {
         clock.onServerDate(date(240), instant)
         assertEquals(instant.epochSecond + 240, clock.now())

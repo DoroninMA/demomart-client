@@ -33,7 +33,7 @@ class ServerClock @Inject constructor(private val clock: Clock, private val stor
             return
         }
         val difference = serverTime - deviceAtResponse.epochSecond
-        val corrected = difference
+        val corrected = if (difference in -5..5) 0 else difference
         // runs on an OkHttp thread
         runBlocking {
             mutex.withLock {
