@@ -53,16 +53,25 @@ private val BalanceEffect.delta: Long
         is BalanceEffect.Refund -> delta
     }
 
+// Card and home share the effect, it plays once
+private val startedEffects = mutableSetOf<String>()
+
 @Composable
 fun AnimatedBalance(balance: Long, effect: BalanceEffect?, onEffectShown: (BalanceEffect) -> Unit) {
     val context = LocalContext.current
     val resolver = context.contentResolver
     val onShown by rememberUpdatedState(onEffectShown)
-    val progress = remember(effect?.key) { Animatable(if (effect == null) 1f else 0f) }
+    val seen = remember(effect?.key) { effect == null || effect.key in startedEffects }
+    val progress = remember(effect?.key) { Animatable(if (seen) 1f else 0f) }
     val labels = remember(effect) { effect?.let(::effectLabel).orEmpty() }
     var labelIndex by remember(effect?.key) { mutableIntStateOf(-1) }
     LaunchedEffect(effect?.key) {
         if (effect == null) return@LaunchedEffect
+        if (seen) {
+            onShown(effect)
+            return@LaunchedEffect
+        }
+        startedEffects += effect.key
         if (effect !is BalanceEffect.Refund) playSuccessSound(context)
         val scale = Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
         if (scale == 0f) progress.snapTo(1f)
