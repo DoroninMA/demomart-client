@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.demomart.client.account.BalanceEffect
+import com.demomart.client.sound.playSuccessSound
 import com.demomart.client.ui.formatEur
 import com.demomart.client.ui.formatPoints
 import com.demomart.client.ui.formatPointsDelta
@@ -54,13 +55,15 @@ private val BalanceEffect.delta: Long
 
 @Composable
 fun AnimatedBalance(balance: Long, effect: BalanceEffect?, onEffectShown: (BalanceEffect) -> Unit) {
-    val resolver = LocalContext.current.contentResolver
+    val context = LocalContext.current
+    val resolver = context.contentResolver
     val onShown by rememberUpdatedState(onEffectShown)
     val progress = remember(effect?.key) { Animatable(if (effect == null) 1f else 0f) }
     val labels = remember(effect) { effect?.let(::effectLabel).orEmpty() }
     var labelIndex by remember(effect?.key) { mutableIntStateOf(-1) }
     LaunchedEffect(effect?.key) {
         if (effect == null) return@LaunchedEffect
+        if (effect !is BalanceEffect.Refund) playSuccessSound(context)
         val scale = Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
         if (scale == 0f) progress.snapTo(1f)
         else launch { progress.animateTo(1f, tween(countDurationMs(effect))) }
