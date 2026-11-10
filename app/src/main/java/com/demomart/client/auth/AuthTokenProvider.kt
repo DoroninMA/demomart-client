@@ -15,9 +15,12 @@ import com.demomart.client.net.ApiResult
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import com.google.firebase.FirebaseException
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.FirebaseUser
+import java.util.concurrent.atomic.AtomicBoolean
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.userProfileChangeRequest
 import kotlinx.coroutines.Dispatchers
@@ -116,11 +119,34 @@ class FirebaseTokenProvider(
         }
         return firebaseResult {
             auth.signInWithCredential(GoogleAuthProvider.getCredential(id, null)).await()
+            nameChecked.set(false)
         }
     }
 
-    override suspend fun idToken(forceRefresh: Boolean): String? =
-        auth.currentUser?.getIdToken(forceRefresh)?.await()?.token
+    // Firebase takes the Google name only on first sign-in, refresh it once per launch
+    private val nameChecked = AtomicBoolean(false)
+
+    override suspend fun idToken(forceRefresh: Boolean): String? {
+        val user = auth.currentUser ?: return null
+        val renamed = nameChecked.compareAndSet(false, true) && syncGoogleName(user)
+        return user.getIdToken(forceRefresh || renamed).await()?.token
+    }
+
+    private suspend fun syncGoogleName(user: FirebaseUser): Boolean = try {
+        user.reload().await()
+        val google = user.providerData
+            .firstOrNull { it.providerId == GoogleAuthProvider.PROVIDER_ID }
+            ?.displayName?.trim()
+        if (google.isNullOrEmpty() || google == user.displayName) {
+            false
+        } else {
+            user.updateProfile(userProfileChangeRequest { displayName = google }).await()
+            true
+        }
+    } catch (_: FirebaseException) {
+        nameChecked.set(false)
+        false
+    }
 
     override suspend fun signOut() {
         store.clear()
