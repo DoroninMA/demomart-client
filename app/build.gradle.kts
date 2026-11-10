@@ -48,6 +48,10 @@ android {
             buildConfigField("String", "AUTH_MODE", quoted(debugMode))
         }
         release {
+            // local testing on a phone: -Ployalty.debugSignedRelease=true
+            if (providers.gradleProperty("loyalty.debugSignedRelease").isPresent) {
+                signingConfig = signingConfigs.getByName("debug")
+            }
             val walletEnabled = local.getProperty("loyalty.releaseWalletEnabled").toBoolean()
             buildConfigField("boolean", "WALLET_ENABLED", walletEnabled.toString())
             buildConfigField("String", "SERVER_URL", quoted(releaseUrl))
