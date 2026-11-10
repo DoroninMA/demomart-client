@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
@@ -35,6 +36,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.Locale
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 
 private val historyDate = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH)
 
@@ -44,7 +47,18 @@ fun HomeScreen(viewModel: HomeViewModel, onCard: () -> Unit, onSignOut: () -> Un
     val account by viewModel.account.collectAsStateWithLifecycle()
     val refreshing by viewModel.refreshing.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val loadingMore by viewModel.loadingMore.collectAsStateWithLifecycle()
     var menuOpen by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+    val hasMore = account?.hasMoreHistory == true
+    LaunchedEffect(listState, hasMore, account?.history?.size) {
+        if (!hasMore) return@LaunchedEffect
+        // fetch the next page a few rows before the end
+        snapshotFlow { listState.layoutInfo.run { (visibleItemsInfo.lastOrNull()?.index ?: 0) >= totalItemsCount - 6 } }
+            .distinctUntilChanged()
+            .filter { it }
+            .collect { viewModel.loadMore() }
+    }
     val firstName = account?.displayName?.trim()?.substringBefore(' ')?.ifEmpty { "there" } ?: "there"
 
     LifecycleResumeEffect(viewModel) {
@@ -74,6 +88,7 @@ fun HomeScreen(viewModel: HomeViewModel, onCard: () -> Unit, onSignOut: () -> Un
         PullToRefreshBox(refreshing, viewModel::refresh, Modifier.fillMaxSize().padding(insets)) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
+                state = listState,
                 contentPadding = PaddingValues(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -103,7 +118,14 @@ fun HomeScreen(viewModel: HomeViewModel, onCard: () -> Unit, onSignOut: () -> Un
                 if (history.isEmpty() && account?.refreshedAt != null) {
                     item { Text("Your purchases will show up here") }
                 }
-                items(history, key = { it.key }) { HistoryRow(it) }
+                items(history, key = { it.key }, contentType = { "row" }) { HistoryRow(it) }
+                if (loadingMore) {
+                    item(key = "more") {
+                        Box(Modifier.fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                        }
+                    }
+                }
             }
         }
     }
@@ -111,10 +133,12 @@ fun HomeScreen(viewModel: HomeViewModel, onCard: () -> Unit, onSignOut: () -> Un
 
 @Composable
 private fun HistoryRow(item: HistoryItem) {
-    val date = try {
-        Instant.parse(item.at).atZone(ZoneId.systemDefault()).format(historyDate)
-    } catch (_: DateTimeParseException) {
-        item.at
+    val date = remember(item.at) {
+        try {
+            Instant.parse(item.at).atZone(ZoneId.systemDefault()).format(historyDate)
+        } catch (_: DateTimeParseException) {
+            item.at
+        }
     }
     Card(shape = RoundedCornerShape(20.dp)) {
         Row(

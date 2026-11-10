@@ -1,6 +1,7 @@
 package com.demomart.client.account
 
 import com.demomart.client.net.ApiResult
+import com.demomart.client.net.HistoryItem
 import com.demomart.client.testing.FakeMeRepository
 import com.demomart.client.testing.MemoryCredentials
 import com.demomart.client.testing.serverClock
@@ -99,5 +100,33 @@ class AccountRepositoryTest {
         account.clear()
         account.refreshFromPush(redeem.saleId, redeem.pointsDelta)
         assertEquals(BalanceEffect.Redeem(127, 500, 18, 500), account.account.value?.lastEffect)
+    }
+
+    private fun sales(count: Int) = (count downTo 1).map { id ->
+        HistoryItem(id.toLong(), "sale", "2026-11-01T12:00:00Z", 100, 1, 1, 0)
+    }
+
+    @Test fun loadMoreAppendsNextPage() = runTest {
+        me.historyItems = sales(70)
+        account.openSession()
+        assertEquals(30, account.account.value?.history?.size)
+        assertTrue(account.account.value!!.hasMoreHistory)
+        account.loadMoreHistory()
+        account.loadMoreHistory()
+        val state = account.account.value!!
+        assertEquals(me.historyItems, state.history)
+        assertFalse(state.hasMoreHistory)
+    }
+
+    @Test fun refreshKeepsLoadedPages() = runTest {
+        me.historyItems = sales(70)
+        account.openSession()
+        account.loadMoreHistory()
+        me.historyItems = sales(71)
+        account.refresh()
+        val state = account.account.value!!
+        assertEquals(61, state.history.size)
+        assertEquals(me.historyItems.take(61), state.history)
+        assertTrue(state.hasMoreHistory)
     }
 }

@@ -31,5 +31,21 @@ class HomeViewModel @Inject constructor(private val repository: AccountRepositor
             }
         }
     }
+    private val mutableLoadingMore = MutableStateFlow(false)
+    val loadingMore = mutableLoadingMore.asStateFlow()
+
+    fun loadMore() {
+        if (mutableLoadingMore.value || mutableRefreshing.value) return
+        mutableLoadingMore.value = true
+        viewModelScope.launch {
+            try {
+                val result = repository.loadMoreHistory()
+                (result as? ApiResult.Err)?.let { mutableError.value = errorText(it.code) }
+            } finally {
+                mutableLoadingMore.value = false
+            }
+        }
+    }
+
     fun consumeEffect(key: String) = repository.consumeEffect(key)
 }

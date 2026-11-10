@@ -7,10 +7,13 @@ import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import retrofit2.Response
 
+const val HISTORY_PAGE = 30
+
 interface MeRepository {
     suspend fun openSession(): ApiResult<MeSession>
     suspend fun me(): ApiResult<Me>
-    suspend fun history(limit: Int = 30): ApiResult<List<HistoryItem>>
+    // before: the last item already shown, to fetch the page after it
+    suspend fun history(limit: Int = HISTORY_PAGE, before: HistoryItem? = null): ApiResult<List<HistoryItem>>
     suspend fun putFcmToken(token: String): ApiResult<Unit>
 }
 
@@ -21,7 +24,8 @@ class RetrofitMeRepository @Inject constructor(
 ) : MeRepository {
     override suspend fun openSession() = json.request { api.openSession() }
     override suspend fun me() = json.request { api.me() }
-    override suspend fun history(limit: Int) = json.request { api.history(limit) }
+    override suspend fun history(limit: Int, before: HistoryItem?) =
+        json.request { api.history(limit, before?.at, before?.saleId, before?.kind) }
     override suspend fun putFcmToken(token: String) = json.request(emptyBody = Unit) { api.putFcmToken(FcmToken(token)) }
 }
 

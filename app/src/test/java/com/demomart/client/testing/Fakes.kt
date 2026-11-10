@@ -43,9 +43,10 @@ internal class FakeMeRepository : MeRepository {
         return ApiResult.Ok(profile)
     }
 
-    override suspend fun history(limit: Int): ApiResult<List<HistoryItem>> {
+    override suspend fun history(limit: Int, before: HistoryItem?): ApiResult<List<HistoryItem>> {
         histories++
-        return ApiResult.Ok(historyItems.take(limit))
+        val start = if (before == null) 0 else historyItems.indexOf(before) + 1
+        return ApiResult.Ok(historyItems.drop(start).take(limit))
     }
 
     override suspend fun putFcmToken(token: String) = ApiResult.Ok(Unit)

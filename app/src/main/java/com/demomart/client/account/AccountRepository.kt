@@ -1,6 +1,7 @@
 package com.demomart.client.account
 
 import com.demomart.client.net.ApiResult
+import com.demomart.client.net.HISTORY_PAGE
 import com.demomart.client.net.HistoryItem
 import com.demomart.client.net.MeRepository
 import com.demomart.client.push.PushRegistrar
@@ -26,6 +27,7 @@ data class AccountState(
     val history: List<HistoryItem> = emptyList(),
     val lastEffect: BalanceEffect? = null,
     val refreshedAt: Instant? = null,
+    val hasMoreHistory: Boolean = false,
 )
 
 @Singleton
@@ -86,12 +88,39 @@ class AccountRepository @Inject constructor(
         val effect = BalanceEffect.detect(baseline, items)
         lastSeenTopKey = items.firstOrNull()?.key.orEmpty()
         state.update { previous ->
+            // keep the older pages already loaded if the first page joins up with them
+            val shown = previous?.history.orEmpty()
+            val joinAt = items.lastOrNull()?.let { last -> shown.indexOfFirst { it.key == last.key } } ?: -1
+            val keepTail = joinAt >= 0 && joinAt < shown.lastIndex
             AccountState(
-                profile.displayName, profile.cardDisplay, profile.balance, items,
+                profile.displayName, profile.cardDisplay, profile.balance,
+                if (keepTail) items + shown.drop(joinAt + 1) else items,
                 effect ?: previous?.lastEffect, Instant.ofEpochSecond(clock.now()),
+                hasMoreHistory = if (keepTail) previous!!.hasMoreHistory else items.size == HISTORY_PAGE,
             )
         }
         ApiResult.Ok(Unit)
+    }
+
+    suspend fun loadMoreHistory(): ApiResult<Unit> = mutex.withLock {
+        val current = state.value ?: return@withLock ApiResult.Ok(Unit)
+        val last = current.history.lastOrNull()
+        if (!current.hasMoreHistory || last == null) return@withLock ApiResult.Ok(Unit)
+        when (val page = me.history(before = last)) {
+            is ApiResult.Err -> page
+            is ApiResult.Ok -> {
+                state.update { latest ->
+                    val known = latest?.history.orEmpty().mapTo(HashSet()) { it.key }
+                    val fresh = page.value.filter { it.key !in known }
+                    latest?.copy(
+                        history = latest.history + fresh,
+                        // a server that ignores the cursor sends the first page again
+                        hasMoreHistory = fresh.size == HISTORY_PAGE,
+                    )
+                }
+                ApiResult.Ok(Unit)
+            }
+        }
     }
 
     private suspend fun openSessionLocked(): ApiResult<Unit> {
