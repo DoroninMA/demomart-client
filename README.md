@@ -61,7 +61,7 @@ With the register on a second phone and the seeded server:
 
 | Pay over NFC | Pay by QR |
 |---|---|
-| <img src="docs/nfc_payment.gif" width="300"> | <img src="docs/qr_payment.gif" width="220"> |
+| <img src="docs/nfc_payment.webp" width="300"> | <img src="docs/qr_payment.webp" width="220"> |
 
 ## License
 
